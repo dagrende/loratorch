@@ -6,12 +6,15 @@
 #include <RH_RF95.h>
 #include <SPI.h>
 #include <ESP8266WiFi.h>
+#include <Button.h>
 
 #define CLIENT_ADDRESS 1
 #define SERVER_ADDRESS 2
+#define LAMP_SENSE_PIN D1
 
 RH_RF95 driver(D8, D2); //
 RHReliableDatagram manager(driver, SERVER_ADDRESS);
+Button lampOnButton(LAMP_SENSE_PIN, false, false, 50);
 
 void setup() {
   WiFi.disconnect();
@@ -19,11 +22,11 @@ void setup() {
   WiFi.forceSleepBegin();
 
   // setup torch lamp control pin 1=lit 0=unlit
-  pinMode(D0, OUTPUT);
-  digitalWrite(D0, 1);
+  pinMode(D4, OUTPUT);
+  digitalWrite(D4, 0);
 
   // setup lamp on sense input pin
-  pinMode(D1, INPUT);
+//  pinMode(LAMP_SENSE_PIN, INPUT);
 
   // setup battery voltage sense pin
   pinMode(A0, INPUT);
@@ -41,7 +44,7 @@ void setup() {
 uint8_t data[] = "And hello back to you";
 // Dont put this on the stack:
 uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
-int prevOnSense = 0;
+float prevVoltage = 0;
 
 void loop() {
   if (manager.available()) {
@@ -55,16 +58,26 @@ void loop() {
       buf[len] = 0;
       Serial.println((char*)buf);
       if (strcmp((char *)buf, "on") == 0) {
-        digitalWrite(D0, 1);
+        digitalWrite(D4, 0);
       } else if (strcmp((char *)buf, "off") == 0) {
-        digitalWrite(D0, 0);
+        digitalWrite(D4, 1);
       }
     }
   }
 
-  int onSense = digitalRead(D1);
-  if (prevOnSense != onSense) {
-    Serial.printf("on sense %d\n", onSense);
-    prevOnSense = onSense;
+  // detect lamp on button (only valid when lamp is remote controlled off - that is D4 set to 1)
+  lampOnButton.read();
+  if (lampOnButton.wasPressed()) {
+    Serial.println("turn on");
+  } else if (lampOnButton.wasReleased()) {
+    Serial.println("turn off");
+  }
+
+  // measure battery voltage
+  float voltage = analogRead(A0) * 6.02 / 789.0;
+  if (abs(voltage - prevVoltage) > 0.05) {
+    Serial.print(voltage);
+    Serial.println("V");
+    prevVoltage = voltage;
   }
 }
