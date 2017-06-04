@@ -24,10 +24,13 @@ void setup() {
 
   Serial.begin(115200);
   while (!Serial) ; // Wait for serial port to be available
-  Serial.println("init ok");
+  Serial.println("serial ok");
 
-  if (!manager.init())
-    Serial.println("init failed");
+  if (manager.init()) {
+    Serial.println("trx init ok");
+  } else {
+    Serial.println("trx init failed");
+  }
   driver.setFrequency(868.0);
 }
 
